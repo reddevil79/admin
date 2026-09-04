@@ -25,19 +25,16 @@ if (!$conn) {
 }
 
 try {
-    // Category count
     $stmt = $conn->prepare("SELECT COUNT(*) as count FROM category_list WHERE delete_flag = 0");
     $stmt->execute();
     $categories = (int)$stmt->get_result()->fetch_assoc()['count'];
     $stmt->close();
 
-    // Product count
     $stmt = $conn->prepare("SELECT COUNT(*) as count FROM product_list WHERE delete_flag = 0");
     $stmt->execute();
     $products = (int)$stmt->get_result()->fetch_assoc()['count'];
     $stmt->close();
 
-    // Today's sales
     $stmt = $conn->prepare(
         "SELECT COALESCE(SUM(total), 0) as total FROM transaction_list
          WHERE DATE(date_added) = CURDATE() AND status = 'completed'"
@@ -46,7 +43,6 @@ try {
     $today_sales = (float)$stmt->get_result()->fetch_assoc()['total'];
     $stmt->close();
 
-    // Out of stock count
     $stmt = $conn->prepare(
         "SELECT COUNT(*) as count FROM product_list
          WHERE stock <= 0 AND delete_flag = 0 AND status = 1"
@@ -55,7 +51,6 @@ try {
     $out_of_stock = (int)$stmt->get_result()->fetch_assoc()['count'];
     $stmt->close();
 
-    // Low stock count
     $stmt = $conn->prepare(
         "SELECT COUNT(*) as count FROM product_list
          WHERE stock > 0 AND stock <= alert_restock AND delete_flag = 0 AND status = 1"
@@ -64,9 +59,8 @@ try {
     $low_stock = (int)$stmt->get_result()->fetch_assoc()['count'];
     $stmt->close();
 
-    // Total profit today
     $stmt = $conn->prepare(
-        "SELECT COALESCE(SUM(ti.quantity * (ti.price - p.cost_price)), 0) as profit
+        "SELECT COALESCE(SUM(ti.quantity * (ti.price - COALESCE(p.cost_price, 0))), 0) as profit
          FROM transaction_items ti
          JOIN product_list p ON ti.product_id = p.product_id
          JOIN transaction_list t ON ti.transaction_id = t.transaction_id
@@ -76,7 +70,6 @@ try {
     $today_profit = (float)$stmt->get_result()->fetch_assoc()['profit'];
     $stmt->close();
 
-    // Top selling products (today)
     $stmt = $conn->prepare(
         "SELECT p.product_id, p.name, p.product_code, SUM(ti.quantity) as total_qty
          FROM transaction_items ti

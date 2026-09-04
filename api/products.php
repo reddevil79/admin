@@ -8,7 +8,6 @@ header('Content-Type: application/json');
 require_once('../config/database.php');
 require_once('../includes/functions.php');
 
-// Get connection
 $db = Database::getInstance();
 $conn = $db->getConnection();
 
@@ -18,7 +17,6 @@ if (!$conn) {
     exit;
 }
 
-// Get parameters
 $page = isset($_POST['page']) ? max(1, (int)$_POST['page']) : 1;
 $page_size = isset($_POST['page_size']) ? (int)$_POST['page_size'] : 20;
 $search = isset($_POST['search']) ? trim($_POST['search']) : '';
@@ -28,12 +26,10 @@ $status = isset($_POST['status']) ? $_POST['status'] : '';
 $offset = ($page - 1) * $page_size;
 
 try {
-    // Build WHERE clause
     $where_conditions = ["p.delete_flag = 0"];
     $bind_types = "";
     $bind_params = [];
 
-    // Search filter
     if (!empty($search)) {
         $where_conditions[] = "(p.product_code LIKE ? OR p.name LIKE ? OR p.barcode LIKE ?)";
         $search_term = "%" . $search . "%";
@@ -43,14 +39,12 @@ try {
         $bind_params[] = $search_term;
     }
 
-    // Category filter
     if (!empty($category) && is_numeric($category)) {
         $where_conditions[] = "p.category_id = ?";
         $bind_types .= "i";
         $bind_params[] = (int)$category;
     }
 
-    // Status filter
     if ($status !== '' && is_numeric($status)) {
         $where_conditions[] = "p.status = ?";
         $bind_types .= "i";
@@ -59,7 +53,6 @@ try {
 
     $where_clause = implode(" AND ", $where_conditions);
 
-    // Get total count
     $count_sql = "SELECT COUNT(*) as total FROM `product_list` p WHERE {$where_clause}";
     $count_stmt = $conn->prepare($count_sql);
 
@@ -74,7 +67,6 @@ try {
     $total_pages = ceil($total_products / $page_size);
     $count_stmt->close();
 
-    // Get paginated products
     $sql = "SELECT p.product_id, p.product_code, p.barcode, p.category_id, p.name, p.description,
                    p.cost_price, p.price, p.discount_percent, p.stock, p.alert_restock, p.image, p.status,
                    COALESCE(c.name, 'Unassigned') as category_name
@@ -90,7 +82,6 @@ try {
         throw new Exception("Prepare failed: " . $conn->error);
     }
 
-    // Add pagination params
     $bind_types_final = $bind_types . "ii";
     $bind_params[] = $page_size;
     $bind_params[] = $offset;
@@ -108,7 +99,6 @@ try {
 
     $stmt->close();
 
-    // Return JSON response
     http_response_code(200);
     echo json_encode([
         'success' => true,
